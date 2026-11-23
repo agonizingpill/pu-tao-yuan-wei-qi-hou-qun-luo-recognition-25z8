@@ -57,7 +57,8 @@ async def time_request(request: Request, call_next):
 async def duplicate(_request, exc):
     messages = {'vine_block_code_key': '地块编号已登记', 'vine_block_sensor_key': '探头已绑定另一地块',
                 'microclimate_sample_block_id_observed_day_slot_key': '该地块的班次采样已封存',
-                'irrigation_round_code_key': '灌溉轮次编号已使用', 'harvest_note_round_id_key': '该轮次已有采收观察'}
+                'irrigation_round_code_key': '灌溉轮次编号已使用', 'harvest_note_round_id_key': '该轮次已有采收观察',
+                'irrigation_experiment_code_key': '试验编号已使用'}
     return JSONResponse(status_code=409, content={'detail': messages.get(exc.diag.constraint_name, '记录已存在')})
 
 
@@ -208,6 +209,19 @@ def cancel(round_id: int, data: schemas.ReasonInput, user=supervised):
     with connect() as db:
         lock_ledger(db)
         return irrigation.cancel(db, round_id, data.reason, user['name'])
+
+
+@app.get('/experiments')
+def experiments(_user=readable):
+    with connect() as db:
+        return irrigation.experiments(db)
+
+
+@app.post('/experiments', status_code=201)
+def start_experiment(data: schemas.ExperimentInput, user=editable):
+    with connect() as db:
+        lock_ledger(db)
+        return irrigation.start_experiment(db, data, user['name'])
 
 
 @app.get('/harvest')

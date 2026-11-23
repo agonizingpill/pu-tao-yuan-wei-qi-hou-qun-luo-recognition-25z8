@@ -62,6 +62,12 @@ class ScheduleInput(Input):
     starts_at: AwareDatetime
 
 
+class ExperimentInput(Input):
+    # 试验单编号由试验编号派生（-C 照常 / -R 减量），故试验编号限长以保证派生编号合法。
+    code: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r'^[A-Z0-9][A-Z0-9-]{1,21}$')]
+    starts_at: AwareDatetime
+
+
 class ReplanInput(Input):
     starts_at: AwareDatetime
     reason: Narrative

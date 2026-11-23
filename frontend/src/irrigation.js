@@ -1,17 +1,30 @@
-import {roundStates} from './domain.js';
+import {arms, experimentStates, roundStates} from './domain.js';
 import {safe, localTime, notice, tag, title, field, table, select, button, paragraph, num} from './ui.js';
 
-export function irrigationPage(blocks, rounds, selected, canWrite, supervisor) {
+function experimentRow(e) {
+  const arm = (code, blockCode, blockName, minutes, state, brix) =>
+    `${safe(code)} · ${safe(blockCode)} ${safe(blockName)} · ${minutes} 分钟 · ${roundStates[state]}${brix === null ? '' : ` · ${num(brix)} °Bx`}`;
+  const measured = e.control_brix !== null && e.treatment_brix !== null;
+  const delta = e.state === 'voided' ? '—'
+    : measured ? `${e.treatment_brix >= e.control_brix ? '+' : ''}${num(e.treatment_brix - e.control_brix)} °Bx` : '两张单都测糖后显示';
+  return `<tr class="${e.state === 'voided' ? 'warn-row' : ''}"><td>${safe(e.code)}</td><td>${safe(e.cultivar)}</td>
+    <td>${arm(e.control_code, e.control_block_code, e.control_block_name, e.control_minutes, e.control_state, e.control_brix)}</td>
+    <td>${arm(e.treatment_code, e.treatment_block_code, e.treatment_block_name, e.treatment_minutes, e.treatment_state, e.treatment_brix)}</td>
+    <td>${experimentStates[e.state]}</td><td>${delta}</td></tr>`;
+}
+
+export function irrigationPage(blocks, rounds, experiments, selected, canWrite, supervisor) {
   const viable = blocks.filter(b => b.profile);
   const shown = selected || rounds[0];
   const rows = rounds.map(r => `<tr class="${r.review_hold || r.state==='needs_replan' ? 'warn-row' : ''}">
-    <td>${localTime(r.starts_at)}</td><td><button class="text-button" data-round="${r.id}">${safe(r.code)}</button></td>
+    <td>${localTime(r.starts_at)}</td><td><button class="text-button" data-round="${r.id}">${safe(r.code)}</button>${r.arm ? ` <span class="tag neutral">试验·${arms[r.arm]}</span>` : ''}</td>
     <td>${safe(r.block_code)} ${safe(r.block_name)}</td><td>${r.minutes} 分钟</td><td>${r.review_hold ? '待标签确认' : roundStates[r.state]}</td></tr>`);
   return `${title('灌溉轮次', '按地块生效标签编排滴灌时段。所有时间均为中国标准时间。')}
     <div class="spread"><section><div class="section-label"><h2>滴灌排程</h2><span>按开始时间</span></div>
     ${rows.length ? table(['开始','轮次','地块','时长','状态'],rows) : notice('还没有排灌轮次。从右侧选择带生效标签的地块编排。')}
     ${shown ? `<article class="round-sheet"><span class="ref">${safe(shown.code)} · ${safe(shown.block_code)}</span><h3>${safe(shown.block_name)}</h3>
     <p>排程依据 ${tag(shown.profile)} v${shown.revision} · ${shown.minutes} 分钟 ${shown.state==='needs_replan' ? `→ 生效标签 ${tag(shown.active_profile)} v${shown.active_revision}` : ''}</p>
+    ${shown.experiment_code ? notice(`减灌试验 ${shown.experiment_code} 的${arms[shown.arm]}单，按开单时标签时长灌溉，换标签不改排。`) : ''}
     ${shown.review_hold ? notice(`候选群落变更暂缓了本轮次。请在群落页处理 #${shown.pending_run_id}。`,'caution') : ''}
     ${canWrite && shown.state === 'needs_replan' ? `<form data-action="replan" data-id="${shown.id}">
       ${field('starts_at','改排开始时间','type="datetime-local" value="2026-11-21T08:20"')}${paragraph('reason','改排记录','写明新窗口依据')}${button('按新标签保存改排')}</form>` : ''}
@@ -26,7 +39,14 @@ export function irrigationPage(blocks, rounds, selected, canWrite, supervisor) {
       ${select('block_id','地块',viable.map(b => [b.id,`${b.code} ${b.name}`]), shown?.block_id)}
       ${field('starts_at','开始时间','type="datetime-local" value="2026-11-21T07:00"')}${button('按标签排入轮次')}</form>
       <p class="muted">凉湿 20 分钟 · 温和 35 分钟 · 暖干 50 分钟。地块时段不得重叠。</p>` : notice(viable.length ? '当前账号可查看轮次。' : '请先识别并发布群落标签。')}
-    </section></div>`;
+    <h2>减灌试验</h2>
+    ${canWrite ? `<form data-action="experiment">${field('code','试验编号','placeholder="EX-1121A"')}
+      ${field('starts_at','开始时间','type="datetime-local" value="2026-11-21T07:00"')}${button('配组并开两张试验单')}</form>
+      <p class="muted">按生效批次的各群归属概率，在该时段空闲的同品种地块中配最相近的一对：编号较小者照常灌，另一块少灌 10 分钟。两张单一起入账，与常规排灌抢同一时段时先入账为准；取消任一单则整对作废。</p>` : notice('当前账号可查看试验。')}
+    </section></div>
+    <section class="bottom"><h2>减灌试验账</h2>
+    ${experiments.length ? table(['试验','品种','对照单 · 照常','减量单 · 少灌 10 分','状态','糖度差 减量−对照'], experiments.map(experimentRow))
+      : notice('还没有减灌试验。在右侧开试验，系统按生效批次的归属概率配组。')}</section>`;
 }
 
 export function harvestPage(notes, rounds, canWrite) {

@@ -38,6 +38,7 @@ def fit_profiles(snapshot):
         'covariance_type': 'diag', 'reg_covar': REG_COVAR, 'n_init': 10, 'features': FEATURES,
         'centroids': {names[i]: dict(zip(FEATURES, row.tolist())) for i, row in enumerate(centroids)},
         'assignments': [dict(block_id=item['block_id'], code=item['code'],
-                             profile=names[int(np.argmax(p))], confidence=float(max(p)))
+                             profile=names[int(np.argmax(p))], confidence=float(max(p)),
+                             probabilities={names[i]: float(p[i]) for i in range(model.n_components)})
                         for item, p in zip(snapshot, posterior)],
     }

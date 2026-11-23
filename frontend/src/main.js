@@ -52,8 +52,8 @@ async function render(message='') {
       queued = run?.status === 'queued';
       body = clusterPage(runs, run, labels, editable, supervisor);
     } else if (page === 'irrigation') {
-      const [blocks, rounds] = await Promise.all([api('/blocks'),api('/rounds')]);
-      body = irrigationPage(blocks, rounds, rounds.find(r => r.id === state.round), editable, supervisor);
+      const [blocks, rounds, experiments] = await Promise.all([api('/blocks'),api('/rounds'),api('/experiments')]);
+      body = irrigationPage(blocks, rounds, experiments, rounds.find(r => r.id === state.round), editable, supervisor);
     } else {
       const [notes, rounds] = await Promise.all([api('/harvest'),api('/rounds')]);
       body = harvestPage(notes, rounds, editable);
@@ -111,6 +111,10 @@ async function mutate(action, data, id) {
       const round = await api('/rounds', {...numeric(data,'block_id'), starts_at:chinaTime(data.starts_at)});
       state.round = round.id;
       return `已排 ${round.code}，${round.minutes} 分钟。`;
+    }
+    case 'experiment': {
+      const trial = await api('/experiments', {code:data.code, starts_at:chinaTime(data.starts_at)});
+      return `已开试验 ${trial.code}：${trial.control_code}（${trial.control_block_code} 照常 ${trial.control_minutes} 分钟）与 ${trial.treatment_code}（${trial.treatment_block_code} 减量 ${trial.treatment_minutes} 分钟）一起入账。`;
     }
     case 'replan':
       await api(`/rounds/${id}/replan`,{...data,starts_at:chinaTime(data.starts_at)});

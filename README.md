@@ -59,14 +59,20 @@ Docker 服务为 `frontend`、`backend`、`worker`、`db`、`redis`。数据库�
 
 标签候选只在变更影响已排轮次时进入主管台。确认与标记待改排在同一事务提交。凉湿、温和、暖干对应预设的 20、35、50 分钟。改排保留最初版本引用，审计附前后版本、时段与时长。录入采收观察要求轮次已完灌、时间相符且每轮仅一笔。三类标签和滴灌时长是基于合成观测的演示规则。传感器和执行设备通过人员录入与登记协作。
 
+## 减灌试验
+
+排灌页可开「减灌试验」，检验少灌 10 分钟是否影响采前糖度。系统按生效识别批次的各群归属概率，在申请时段空闲（按自身标签时长无重叠轮次）且无待确认标签的同品种地块中，配出归属概率最相近的一对：编号较小的地块开照常单，另一块开减量单（自身标签时长减 10 分钟）。两张试验单与常规排灌共用同一时段台账和串行锁，并发抢时段时先入账者占用，重叠请求收到冲突。两张单在同一事务入账；按试验编号幂等，失败重试返回原配组而不重复开单。
+
+试验单按开单时的标签与时长灌溉：换标签不触发待改排，候选标签也不暂缓试验单执行。任一试验单被取消则整对作废——未灌的配对单一并取消并释放时段，已完灌的一单照常留账。两张单都登记采收观察后，试验账才显示减量与对照的糖度差。
+
 ## 代码职责
 
 | 路径 | 说明 |
 |---|---|
-| `backend/migrations/001_field_ledger.sql` | 领域表、外键、版本和活动状态约束 |
+| `backend/migrations/001_field_ledger.sql`、`002_irrigation_experiment.sql` | 领域表、外键、版本和活动状态约束；减灌试验与轮次试验归属 |
 | `backend/src/schemas.py`、`backend/src/domain.py` | API 输入与领域枚举 |
 | `backend/src/app.py`、`backend/src/auth.py`、`backend/src/db.py` | 路由、权限、中间件、连接和审计 |
-| `backend/src/fieldbook.py`、`clusters.py`、`irrigation.py` | 地块采样、标签发布及滴灌与采收事务 |
+| `backend/src/fieldbook.py`、`clusters.py`、`irrigation.py`、`pairing.py` | 地块采样、标签发布、滴灌采收与试验配组事务 |
 | `backend/src/mixture.py`、`backend/src/worker.py` | GaussianMixture 拟合、Redis 通知、数据库恢复与文件证据 |
 | `backend/scripts/seed_demo.py` | 幂等初始化演示数据 |
 | `frontend/src/api.js`、`main.js`、`ui.js` | 原生 ES modules 的 API、会话与页面状态、共享组件 |

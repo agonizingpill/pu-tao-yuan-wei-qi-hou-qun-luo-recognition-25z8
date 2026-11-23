@@ -26,3 +26,6 @@ class RoundState(StrEnum):
 
 
 MINUTES = {Profile.COOL: 20, Profile.BALANCED: 35, Profile.WARM: 50}
+
+# 减灌试验：配对中减量单比照常单少灌的分钟数。
+EXPERIMENT_DELTA = 10

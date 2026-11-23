@@ -70,12 +70,13 @@ def submit(db, end, actor):
 
 
 def affected_rounds(db, run_id):
+    # 试验轮次不参与改排：换标签后已排试验仍按原时长灌。
     return db.execute('''
         SELECT r.id,r.code,b.code AS block,p.profile AS proposed_profile,a.profile AS basis_profile,r.starts_at
         FROM irrigation_round r JOIN vine_block b ON b.id=r.block_id
         JOIN climate_label p ON p.block_id=r.block_id AND p.run_id=%s AND p.state='proposed'
         JOIN climate_label a ON a.id=r.label_id
-        WHERE r.state='scheduled' AND a.profile<>p.profile
+        WHERE r.state='scheduled' AND a.profile<>p.profile AND r.experiment_id IS NULL
         ORDER BY r.starts_at,r.code
     ''', (run_id,)).fetchall()
 
